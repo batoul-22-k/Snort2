@@ -1,0 +1,8 @@
+alert tcp any any -> $HOME_NET 8080 (
+    msg:"NIDS: Unauthorized admin access attempt";
+    flow:to_server,established;
+    content:"/admin";
+    http_uri;
+    sid:1000003;
+    rev:1;
+)

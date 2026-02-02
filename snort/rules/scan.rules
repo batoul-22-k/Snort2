@@ -1,0 +1,7 @@
+alert tcp any any -> $HOME_NET 1:65535 (
+    msg:"NIDS: TCP SYN scan activity";
+    flags:S;
+    threshold:type both, track by_src, count 5, seconds 2;
+    sid:1000001;
+    rev:1;
+)
