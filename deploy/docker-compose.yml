@@ -1,0 +1,96 @@
+version: "3.9"
+
+networks:
+  nids-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.13
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - nids-net
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.13
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+    volumes:
+      - ../kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - ../kibana/saved_objects:/usr/share/kibana/saved_objects:ro
+    networks:
+      - nids-net
+
+  kibana-setup:
+    image: curlimages/curl:8.5.0
+    container_name: kibana-setup
+    depends_on:
+      - kibana
+    volumes:
+      - ../kibana/saved_objects:/usr/share/kibana/saved_objects:ro
+      - ../kibana/scripts/setup_kibana.sh:/usr/local/bin/setup_kibana.sh:ro
+    entrypoint: ["/usr/local/bin/setup_kibana.sh"]
+    networks:
+      - nids-net
+
+  protected:
+    build: ../target
+    container_name: protected
+    networks:
+      - nids-net
+
+  attacker:
+    build: ../attacker
+    container_name: attacker
+    networks:
+      - nids-net
+
+  snort:
+    build: ../snort
+    container_name: snort
+    network_mode: service:protected
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ../snort/config:/etc/snort
+      - ../snort/rules:/etc/snort/rules
+      - ../snort/logs:/var/log/snort
+    depends_on:
+      - protected
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.13
+    container_name: logstash
+    depends_on:
+      - elasticsearch
+      - snort
+    volumes:
+      - ../logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ../snort/logs:/var/log/snort
+    networks:
+      - nids-net
+
+  log-viewer:
+    build: ../log-viewer
+    container_name: log-viewer
+    networks:
+      - nids-net
+    volumes:
+      - ../snort/logs:/var/log/snort
+    depends_on:
+      - snort
+
+volumes:
+  es-data:
