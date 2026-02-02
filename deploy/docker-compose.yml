@@ -10,7 +10,6 @@ networks:
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.13
-    container_name: elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -22,7 +21,6 @@ services:
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.17.13
-    container_name: kibana
     depends_on:
       - elasticsearch
     ports:
@@ -35,7 +33,6 @@ services:
 
   kibana-setup:
     image: curlimages/curl:8.5.0
-    container_name: kibana-setup
     depends_on:
       - kibana
     volumes:
@@ -47,19 +44,16 @@ services:
 
   protected:
     build: ../target
-    container_name: protected
     networks:
       - nids-net
 
   attacker:
     build: ../attacker
-    container_name: attacker
     networks:
       - nids-net
 
   snort:
     build: ../snort
-    container_name: snort
     network_mode: service:protected
     cap_add:
       - NET_ADMIN
@@ -72,7 +66,7 @@ services:
 
   logstash:
     image: docker.elastic.co/logstash/logstash:7.17.13
-    container_name: logstash
+
     depends_on:
       - elasticsearch
       - snort
@@ -84,7 +78,7 @@ services:
 
   log-viewer:
     build: ../log-viewer
-    container_name: log-viewer
+
     networks:
       - nids-net
     volumes:
